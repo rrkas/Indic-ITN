@@ -17,9 +17,9 @@ class Constants:
     ALPHA = pynini.union(LOWER, UPPER).optimize()
     ALNUM = pynini.union(DIGIT, ALPHA).optimize()
     HEX = pynini.union(*string.hexdigits).optimize()
-    NON_BREAKING_SPACE = u"\u00A0"
+    NON_BREAKING_SPACE = "\u00A0"
     SPACE = " "
-    WHITE_SPACE = pynini.union(" ", "\t", "\n", "\r", u"\u00A0").optimize()
+    WHITE_SPACE = pynini.union(" ", "\t", "\n", "\r", "\u00A0").optimize()
     NOT_SPACE = pynini.difference(CHAR, WHITE_SPACE).optimize()
     NOT_QUOTE = pynini.difference(CHAR, r'"').optimize()
 
@@ -32,10 +32,29 @@ class Constants:
     insert_space = pynutil.insert(" ")
     delete_extra_space = pynini.cross(pynini.closure(WHITE_SPACE, 1), " ")
 
-
     _v = pynini.union("a", "e", "i", "o", "u")
     _c = pynini.union(
-        "b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "n", "p", "q", "r", "s", "t", "v", "w", "x", "y", "z"
+        "b",
+        "c",
+        "d",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "p",
+        "q",
+        "r",
+        "s",
+        "t",
+        "v",
+        "w",
+        "x",
+        "y",
+        "z",
     )
     _ies = SIGMA + _c + pynini.cross("y", "ies")
     _es = SIGMA + pynini.union("s", "sh", "ch", "x", "z") + pynutil.insert("es")
@@ -47,5 +66,3 @@ class Constants:
 
     # SINGULAR_TO_PLURAL = graph_plural
     # PLURAL_TO_SINGULAR = pynini.invert(graph_plural)
-
-print(Constants.ROOT_PATH)

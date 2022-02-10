@@ -1,89 +1,87 @@
+from abc import abstractmethod
 import os
 import pynini
 from pynini.lib import pynutil
 from typing import List
 from .constants import Constants
 
+
 class GenericITN:
-    lang = None
-    zero_digit = None
+    lang = NotImplementedError()
+    zero_digit = NotImplementedError()
 
-    def __init__(self):
-        self.__load_data()
+    def __init__(self) -> None:
+        self.data_dir_path = os.path.join(Constants.DATA_PATH, self.__class__.lang)
 
-    def __remove_starting_zeros(self, word):
-        if word[0] in self.__class__.zero_digit and len(word) > 1:
-            first_non_zero_num = min([pos for pos, word in enumerate(list(word)) if word != self.__class__.zero_digit])
-            word = word[first_non_zero_num:]
-        return word
-    
-    def __load_data(self):
-        data_dir_path = os.path.join(Constants.DATA_PATH, self.__class__.lang)
-        
-        digit_file = os.path.join(data_dir_path, 'digit.tsv')
-        with open(digit_file) as f:
-            self.digits = f.readlines()
-        self.digits = ''.join([line.split()[-1] for line in self.digits])
-        self.digits_with_zero = self.__class__.zero_digit + self.digits
-        self.digits = pynini.union(*self.digits).optimize()
-        self.digits_with_zero = pynini.union(*self.digits_with_zero).optimize()
-        self.graph_zero = pynini.string_file(os.path.join(data_dir_path, "zero.tsv"))
-        self.graph_digit = pynini.string_file(os.path.join(data_dir_path, "digit.tsv"))
-        self.graph_tens = pynini.string_file(os.path.join(data_dir_path, "tens.tsv"))
-        
-        with open(os.path.join(data_dir_path, "hundred.tsv")) as f:
-            self.hundred = f.read().strip()
-        
-        self.graph_hundred = pynini.cross(self.hundred, "")
+    def optimize_zeros(self, inp: str, line: str):
+        # remove spaces
+        line.replace(" ", "")
 
-        graph_zero_insert = pynutil.insert(self.__class__.zero_digit)
+        def strip_zeros(s: str):
+            return s.strip().lstrip(self.__class__.zero_digit)
 
-        self.graph_hundred_component = pynini.union(
-            self.graph_digit + Constants.delete_space + self.graph_hundred, 
-            graph_zero_insert,
-        )
-        self.graph_hundred_component += Constants.delete_space
-        self.graph_hundred_component += pynini.union(
-            self.graph_tens, 
-            graph_zero_insert + (self.graph_digit | graph_zero_insert),
-        )
+        out = ""
 
-        self.graph_hundred_component_at_least_one_none_zero_digit = self.graph_hundred_component @ (
-                pynini.closure(self.digits) + (self.digits - self.__class__.zero_digit) + pynini.closure(self.digits)
-        )
+        i = 0
+        while i < len(inp):
+            line = strip_zeros(line)
 
-        with open(os.path.join(data_dir_path,"thousands.tsv")) as f:
-            self.thousands = f.readlines()
+            if len(line) == 0:
+                break
 
-        thousands_sum = pynutil.delete(self.thousands[0])
+            if inp[i] == " ":
+                # check extra spaces
+                if out[-1] != " ":
+                    out += " "
+            else:
+                if line.startswith(inp[i]):
+                    out += inp[i]
+                    if len(line):
+                        line = line[1:]
+                    else:
+                        break
+                elif line[0] in self.numbers:
+                    num = ""
+                    while len(line) and line[0] in self.numbers:
+                        num += line[0]
 
-        for th in self.thousands[1:]:
-            thousands_sum += pynutil.delete(th)
+                        if len(line):
+                            line = line[1:]
+                        else:
+                            break
+                    out += num
 
-        self.graph_thousands = pynini.union(
-            self.graph_hundred_component + Constants.delete_space + thousands_sum,
-            pynutil.insert(self.__class__.zero_digit * 3, weight=0.1)
-        )
+            i += 1
 
-        self.fst = pynini.union(
-            self.graph_thousands
-            + Constants.delete_space
-            + self.graph_hundred_component,
-            self.graph_zero,
-        )
+        return out
 
-        self.word = pynini.closure(pynutil.add_weight(Constants.NOT_SPACE, weight=0.1), 1)
+    @abstractmethod
+    def prepare_fst(self):
+        raise NotImplementedError()
 
-        self.word_fst = self.word.optimize()
+    def load_numbers(self):
+        data = {}
+        with open(os.path.join(self.data_dir_path, "numbers_en.tsv")) as f:
+            for line in f.readlines():
+                kv = line.split("\t")
+                if len(kv) == 2:
+                    data[kv[0].strip()] = kv[1].strip()
+        self.numbers = data
 
-        self.fst = pynini.cdrewrite(self.fst, "", "", Constants.SIGMA).optimize()
+    def set_final_graph_fst(self, fst):
+        self.final_graph = fst
 
-        self.final_graph = (pynutil.add_weight(self.fst, 1.1) | pynutil.add_weight(self.word_fst, 100)).optimize()
+    def replace_numbers_en(self, inp: str):
+        for k in self.numbers:
+            inp = inp.replace(k, self.numbers[k])
+        return inp
 
-    
-    def execute(self, inp):
+    def execute(self, inp, to_eng=False):
+        self.prepare_fst()
+        self.load_numbers()
         s = pynini.escape(inp.strip())
         ans = s @ self.final_graph
         astr = pynini.shortestpath(ans).string()
-        astr = ' '.join([self.__remove_starting_zeros(word) for word in astr.split()])
+        astr = self.optimize_zeros(inp, astr)
+        astr = self.replace_numbers_en(astr)
         return s, astr
