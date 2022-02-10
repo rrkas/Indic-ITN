@@ -1,6 +1,6 @@
 from modules.generic import GenericITN
 
 
-class En(GenericITN):
+class ITN(GenericITN):
     lang = "en"
     zero_digit = "0"

@@ -15,10 +15,13 @@ class GenericITN:
 
     def optimize_zeros(self, inp: str, line: str):
         # remove spaces
-        line.replace(" ", "")
+        if line == self.__class__.zero_digit:
+            return line
 
         def strip_zeros(s: str):
             return s.strip().lstrip(self.__class__.zero_digit)
+
+        line = strip_zeros(line)
 
         out = ""
 
@@ -76,12 +79,13 @@ class GenericITN:
             inp = inp.replace(k, self.numbers[k])
         return inp
 
-    def execute(self, inp, to_eng=False):
+    def execute(self, inp, dig_en=False):
         self.prepare_fst()
         self.load_numbers()
         s = pynini.escape(inp.strip())
         ans = s @ self.final_graph
         astr = pynini.shortestpath(ans).string()
         astr = self.optimize_zeros(inp, astr)
-        astr = self.replace_numbers_en(astr)
-        return s, astr
+        if dig_en:
+            astr = self.replace_numbers_en(astr)
+        return astr

@@ -5,11 +5,12 @@ from modules.constants import Constants
 from modules.generic import GenericITN
 
 
-class Hi(GenericITN):
+class ITN(GenericITN):
     lang = "hi"
     zero_digit = "०"
 
     def prepare_fst(self):
+        # digits
         digit_file = os.path.join(self.data_dir_path, "digit.tsv")
         with open(digit_file) as f:
             digits = f.readlines()
@@ -17,51 +18,61 @@ class Hi(GenericITN):
         digits_with_zero = __class__.zero_digit + digits
         digits = pynini.union(*digits).optimize()
         digits_with_zero = pynini.union(*digits_with_zero).optimize()
+
+        # zero graph
         graph_zero = pynini.string_file(os.path.join(self.data_dir_path, "zero.tsv"))
+
+        # digit graph
         graph_digit = pynini.string_file(os.path.join(self.data_dir_path, "digit.tsv"))
+
+        # tens graph
         graph_tens = pynini.string_file(os.path.join(self.data_dir_path, "tens.tsv"))
-
-        with open(os.path.join(self.data_dir_path, "hundred.tsv")) as f:
-            hundred = f.read().strip()
-
-        graph_hundred = pynini.cross(hundred, "")
-
         graph_zero_insert = pynutil.insert(__class__.zero_digit)
 
-        graph_hundred_component = pynini.union(
-            graph_digit + Constants.delete_space + graph_hundred,
-            graph_zero_insert,
-        )
-        graph_hundred_component += Constants.delete_space
-        graph_hundred_component += pynini.union(
-            graph_tens,
-            graph_zero_insert + (graph_digit | graph_zero_insert),
-        )
-
-        graph_hundred_component_at_least_one_none_zero_digit = (
-            graph_hundred_component
-            @ (
-                pynini.closure(digits)
-                + (digits - __class__.zero_digit)
-                + pynini.closure(digits)
+        # hundred graph
+        with open(os.path.join(self.data_dir_path, "hundred.tsv")) as f:
+            hundred = f.read().strip()
+        graph_hundred = pynini.cross(hundred, "")
+        graph_hundred_component = (
+            pynini.union(
+                graph_digit + Constants.delete_space + graph_hundred,
+                graph_zero_insert,
+            )
+            + Constants.delete_space
+            + pynini.union(
+                graph_tens,
+                graph_zero_insert + (graph_digit | graph_zero_insert),
             )
         )
 
+        # thousand graph
         with open(os.path.join(self.data_dir_path, "thousands.tsv")) as f:
-            thousands = f.readlines()
-
-        thousands_sum = pynutil.delete(thousands[0].strip())
-
-        for th in thousands[1:]:
-            thousands_sum += pynutil.delete(th.strip())
-
-        graph_thousands = pynini.union(
-            graph_hundred_component + Constants.delete_space + thousands_sum,
-            pynutil.insert(__class__.zero_digit * 3, weight=0.1),
+            thousand = f.read().strip()
+        thousand = pynini.cross(thousand, "")
+        graph_thousand = pynini.union(
+            graph_hundred_component + Constants.delete_space + thousand,
+            pynutil.insert(__class__.zero_digit * 3),
         )
+        # graph_thousand_component = (
+        #     pynini.union(
+        #         graph_hundred_component + Constants.delete_space + graph_thousand,
+        #         graph_zero_insert + (graph_digit | graph_zero_insert),
+        #         graph_zero_insert,
+        #     )
+        #     + Constants.delete_space
+        # )
+
+        # lakh
+        # with open(os.path.join(self.data_dir_path, "lakh.tsv")) as f:
+        #     lakh = f.read().strip()
+        # lakh = pynini.cross(lakh, "")
+        # graph_lakh = pynini.union(
+        #     graph_thousand_component + Constants.delete_space + lakh,
+        #     pynutil.insert(__class__.zero_digit * 5),
+        # )
 
         fst = pynini.union(
-            graph_thousands + Constants.delete_space + graph_hundred_component,
+            graph_thousand + Constants.delete_space + graph_hundred_component,
             graph_zero,
         )
 
