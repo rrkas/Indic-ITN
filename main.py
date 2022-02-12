@@ -12,5 +12,8 @@ app = falcon.App(
 app.add_route("/ITN", ServeITN())
 
 if __name__ == "__main__":
-    httpd = make_server("127.0.0.1", 8000, app)
+    host = "127.0.0.1"
+    port = 8000
+    httpd = make_server(host, port, app)
+    print(f"Server listening at: {host}:{port}")
     httpd.serve_forever()

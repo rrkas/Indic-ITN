@@ -12,6 +12,8 @@ class GenericITN:
 
     def __init__(self) -> None:
         self.data_dir_path = os.path.join(Constants.DATA_PATH, self.__class__.lang)
+        self.prepare_fst()
+        self.load_numbers()
 
     def optimize_zeros(self, inp: str, line: str):
         # remove spaces
@@ -80,8 +82,6 @@ class GenericITN:
         return inp
 
     def execute(self, inp, dig_en=False):
-        self.prepare_fst()
-        self.load_numbers()
         s = pynini.escape(inp.strip())
         ans = s @ self.final_graph
         astr = pynini.shortestpath(ans).string()
